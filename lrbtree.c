@@ -31,14 +31,16 @@ typedef struct rb_node rbnode_t;
 
 typedef struct {
 	rbnode_t rb;
-	void* udata;
 }l_node_t;
 
 static int l_new(lua_State* L);
 static int l_insert(lua_State* L);
 static int l_delete(lua_State* L);
+static int l_range(lua_State* L);
 static int l_gc(lua_State* L);
+
 static int compare(lua_State* L, l_node_t* nodea, l_node_t* nodeb);
+static l_node_t *get_node(lua_State *L, int rbtree_idx, int value_idx);
 
 static int compare(lua_State* L, l_node_t* nodea, l_node_t* nodeb)
 {
@@ -48,11 +50,11 @@ static int compare(lua_State* L, l_node_t* nodea, l_node_t* nodeb)
 	lua_getuservalue(L, 1);
 	lua_getfield(L, -1, "value_map");
 	lua_getfield(L, -2, "comp_func"); 	/*value_map, comp_func*/
-		lua_pushlightuserdata(L, nodea);
-		lua_rawget(L, -3);		/*value_map, comp_func, valueA*/
 
-		lua_pushlightuserdata(L, nodeb);
-		lua_rawget(L, -4);		/*value_map, comp_func, valueA, valueB*/
+	lua_pushlightuserdata(L, nodea);
+	lua_rawget(L, -3);		/*value_map, comp_func, valueA*/
+	lua_pushlightuserdata(L, nodeb);
+	lua_rawget(L, -4);		/*value_map, comp_func, valueA, valueB*/
 
 	fret = lua_pcall(L, 2, 1, 0);
 	if (fret != 0)
@@ -65,7 +67,6 @@ static int compare(lua_State* L, l_node_t* nodea, l_node_t* nodeb)
 
 static l_node_t *get_node(lua_State *L, int rbtree_idx, int value_idx)
 {
-
 	int top = lua_gettop(L);
 
 	lua_getuservalue(L, rbtree_idx);
@@ -74,7 +75,7 @@ static l_node_t *get_node(lua_State *L, int rbtree_idx, int value_idx)
 	lua_pushvalue(L, value_idx);
 	lua_rawget(L, -2);
 
-	l_node_t* p = lua_isuserdata(L, -1) ? lua_touserdata(L, -1) : NULL;
+	l_node_t* p = lua_touserdata(L, -1);
 	lua_settop(L, top);
 	return p;
 }
@@ -110,20 +111,21 @@ static int l_insert(lua_State* L)
 	luaL_argcheck(L, !lua_isnoneornil(L, 2), 2,
 		      "number|string|table|udata required!");
 
-	lua_getuservalue(L, 1);
 	do {
+		lua_getuservalue(L, 1);
 		lua_getfield(L, -1, "node_map");
 		lua_pushvalue(L, 2);
 		lua_rawget(L, -2);
 		if (!lua_isnil(L, -1))
 			return luaL_error(L, "value exists!");
-		lua_pop(L, 2);
+		lua_pop(L, 3);
 	} while(0);
 
 	node = malloc(sizeof(l_node_t));
 	if (node == NULL)
 		return luaL_error(L, "no memory in l_insert");
-	node->udata = node;
+
+	lua_getuservalue(L, 1);
 
 	lua_getfield(L, -1, "node_map");
 	lua_pushvalue(L, 2);
@@ -146,8 +148,7 @@ static int l_insert(lua_State* L)
 	rb_link_node(&node->rb, parent, new);
 	rb_insert_color(&node->rb, root);
 
-	lua_pushlightuserdata(L, node);
-	return 1;
+	return 0;
 }
 
 static int l_delete(lua_State* L)
@@ -169,13 +170,14 @@ static int l_delete(lua_State* L)
 	lua_pop(L, 1);
 
 	lua_getfield(L, -1, "value_map");
-	lua_pushlightuserdata(L, (void *)node);
+	lua_pushlightuserdata(L, (void*)node);
 	lua_pushnil(L);
 	lua_rawset(L, -3);
 	lua_pop(L, 1);
 
 	rb_erase(&node->rb, root);
 	free(node);
+
 	return 0;
 }
 
@@ -224,13 +226,10 @@ static int l_gc(lua_State* L)
 	rbroot_t* root = CHECK_RBTREE(L, 1);
 	rbnode_t* rbnode;
 	l_node_t* node;
-	(void)root;
-
 	for (rbnode = rb_first(root); rbnode; rbnode = rb_next(rbnode)){
 		node = rb_entry(rbnode, l_node_t, rb);
 		free(node);
 	}
-
 	return 0;
 }
 
@@ -248,7 +247,7 @@ static void opencls_rbtree(lua_State* L)
 	luaL_register(L, NULL, l_methods);
 	lua_setfield(L, -2, "__index");
 	lua_pushcfunction(L, l_gc);
-	lua_setfield (L, -2, "__gc");
+	lua_setfield(L, -2, "__gc");
 }
 
 int luaopen_rbtree(lua_State* L)
