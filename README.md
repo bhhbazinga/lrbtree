@@ -16,3 +16,5 @@ insert 100K elements 0.623489s
 
 delete 100K elements 0.047357s
 
+## lua-bind
+see [test](test.lua)
