@@ -198,13 +198,13 @@ static int l_exists(lua_State* L)
 
 static int l_range(lua_State* L)
 {
-	rbroot_t* root；
+	rbroot_t* root;
 	rbnode_t* rbnode_from;
 	rbnode_t* rbnode_to;
 	rbnode_t* rbnode_cur;
 	l_node_t* node;
 	int i;
-	
+
 	root = CHECK_RBTREE(L, 1);
 	rbnode_from = lua_isnoneornil(L, 2) ? rb_first(root) : get_node(L, 1, 2);
 	rbnode_to = lua_isnoneornil(L, 3) ? rb_last(root) : get_node(L, 1, 3);
@@ -251,7 +251,7 @@ static void opencls_rbtree(lua_State* L)
 	lua_setfield(L, -2, "__gc");
 }
 
-int luaopen_rbtree(lua_State* L)
+int luaopen_lrbtree(lua_State* L)
 {
 	luaL_Reg lfuncs[] = {
 		{"new", l_new},
