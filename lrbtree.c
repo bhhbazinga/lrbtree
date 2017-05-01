@@ -37,6 +37,8 @@ static int l_new(lua_State* L);
 static int l_insert(lua_State* L);
 static int l_delete(lua_State* L);
 static int l_range(lua_State* L);
+static int l_iterator(lua_State* L);
+static int l_walk(lua_State* L);
 static int l_gc(lua_State* L);
 
 static int compare(lua_State* L, l_node_t* nodea, l_node_t* nodeb);
@@ -75,7 +77,7 @@ static l_node_t *get_node(lua_State *L, int rbtree_idx, int value_idx)
 	lua_pushvalue(L, value_idx);
 	lua_rawget(L, -2);
 
-	l_node_t* p = lua_touserdata(L, -1);
+	l_node_t* p = lua_isuserdata(L, -1) ? lua_touserdata(L, -1) : NULL;
 	lua_settop(L, top);
 	return p;
 }
@@ -208,6 +210,9 @@ static int l_range(lua_State* L)
 	root = CHECK_RBTREE(L, 1);
 	rbnode_from = lua_isnoneornil(L, 2) ? rb_first(root) : get_node(L, 1, 2);
 	rbnode_to = lua_isnoneornil(L, 3) ? rb_last(root) : get_node(L, 1, 3);
+	if (rbnode_from == NULL || rbnode_to == NULL) {
+		return luaL_error(L, "value not exists!");
+	}
 
 	lua_getuservalue(L, 1);
 	lua_getfield(L, -1, "value_map");
@@ -222,11 +227,61 @@ static int l_range(lua_State* L)
 	return 1;
 }
 
+static int l_iterator(lua_State* L)
+{
+	rbroot_t* root;
+	l_node_t* node;
+	l_node_t* next;
+	int index;
+	int next_index;
+
+	root = CHECK_RBTREE(L, lua_upvalueindex(1));
+	index = lua_tointeger(L, lua_upvalueindex(2));
+	next_index = index + 1;
+	node = lua_touserdata(L, lua_upvalueindex(3));
+	if (node == NULL) {
+		return 0;
+	}
+	next = rb_entry(rb_next(&node->rb), l_node_t, rb);
+
+	lua_pushinteger(L, index + 1);
+	lua_replace(L, lua_upvalueindex(2));
+
+	lua_pushlightuserdata(L, next);
+	lua_replace(L, lua_upvalueindex(3));
+
+	lua_getuservalue(L, lua_upvalueindex(1));
+	lua_getfield(L, -1, "value_map");
+	lua_pushlightuserdata(L, (void*)node);
+	lua_rawget(L, -2);
+
+	lua_pushinteger(L, index);
+	lua_pushvalue(L, -2);
+	return 2;
+}
+
+static int l_walk(lua_State* L)
+{
+	rbroot_t* root;
+	l_node_t* first;
+
+	root = CHECK_RBTREE(L, 1);
+	first = rb_entry(rb_first(root), l_node_t, rb);
+
+	lua_pushvalue(L, 1);
+	lua_pushinteger(L, 1);
+	lua_pushlightuserdata(L, (void*)first);
+	lua_pushcclosure(L, l_iterator, 3);
+	return 1;
+}
+
 static int l_gc(lua_State* L)
 {
-	rbroot_t* root = CHECK_RBTREE(L, 1);
+	rbroot_t* root;
 	rbnode_t* rbnode;
 	l_node_t* node;
+	root = CHECK_RBTREE(L, 1);
+
 	for (rbnode = rb_first(root); rbnode; rbnode = rb_next(rbnode)){
 		node = rb_entry(rbnode, l_node_t, rb);
 		free(node);
@@ -241,6 +296,7 @@ static void opencls_rbtree(lua_State* L)
 		{"delete", l_delete},
 		{"exists", l_exists},
 		{"range", l_range},
+		{"walk", l_walk},
 		{NULL, NULL},
 	};
 	luaL_newmetatable(L, CLASS_RBTREE);
