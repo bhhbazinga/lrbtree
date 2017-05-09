@@ -233,11 +233,10 @@ static int l_iterator(lua_State* L)
 	l_node_t* node;
 	l_node_t* next;
 	int index;
-	int next_index;
 
 	root = CHECK_RBTREE(L, lua_upvalueindex(1));
+	(void)root;
 	index = lua_tointeger(L, lua_upvalueindex(2));
-	next_index = index + 1;
 	node = lua_touserdata(L, lua_upvalueindex(3));
 	if (node == NULL) {
 		return 0;
@@ -300,8 +299,7 @@ static void opencls_rbtree(lua_State* L)
 		{NULL, NULL},
 	};
 	luaL_newmetatable(L, CLASS_RBTREE);
-	lua_newtable(L);
-	luaL_register(L, NULL, l_methods);
+	luaL_newlib(L, l_methods);
 	lua_setfield(L, -2, "__index");
 	lua_pushcfunction(L, l_gc);
 	lua_setfield(L, -2, "__gc");
