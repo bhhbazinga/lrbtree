@@ -1,22 +1,17 @@
 CC = gcc
-CFLAGS = -c -g3 -Wall -pedantic -fPIC
-SOFILE = lrbtree.so
+CFLAGS = -g -O0 -Wall -pedantic
+SHARED = -fPIC --shared
+SO = lrbtree.so
 
-all : $(SOFILE)
+all : $(SO)
 
-$(SOFILE) : rbtree.o lrbtree.o
-	$(CC) -o $@ $^ --shared -dynamiclib -Wl,-undefined,dynamic_lookup
-
-rbtree.o : rbtree.c rbtree.h
-	$(CC) -o $@ $(CFLAGS) $<
-
-lrbtree.o : lrbtree.c rbtree.h
-	$(CC) -o $@ $(CFLAGS) $<
+$(SO) : rbtree.c lrbtree.c
+	$(CC) $(CFLAGS) $(SHARED) -o $@ $^
 
 run :
 	lua test.lua
 
 clean :
-	rm -f *.o *.so
+	rm *.so
 
 .PHONY : clean run

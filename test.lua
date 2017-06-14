@@ -11,12 +11,12 @@ end
 local t2 = os.clock()
 
 for idx, v in rbtree:walk() do
-	print(idx, v)
+--	print(idx, v)
 end
 
 local list = rbtree:range(1, 100000)
 for idx, v in ipairs(list) do
-	print(idx, v)
+--	print(idx, v)
 end
 
 local t3 = os.clock()
@@ -27,8 +27,26 @@ local t4 = os.clock()
 
 print("after delete all")
 for idx, v in rbtree:walk() do
-	print(idx, v)
+--	print(idx, v)
 end
 
 print("insert 100K elements:", t2 - t1)
 print("delete 100K elements:", t4 - t3)
+
+local r = lrbtree.new(function(t1, t2) return t1[1] - t2[1] end)
+local t1 = {1}
+local t2 = {2}
+local t3 = {3}
+
+r:insert(t1)
+r:insert(t2)
+r:insert(t3)
+r:delete(t2)
+
+for i, v in ipairs(r:range()) do
+	print(i, v, v[1])
+end
+
+for i, v in r:walk() do
+	print(i, v, v[1])
+end

@@ -39,6 +39,8 @@ static int l_delete(lua_State* L);
 static int l_range(lua_State* L);
 static int l_iterator(lua_State* L);
 static int l_walk(lua_State* L);
+static int l_first(lua_State* L);
+static int l_last(lua_State* L);
 static int l_gc(lua_State* L);
 
 static int compare(lua_State* L, l_node_t* nodea, l_node_t* nodeb);
@@ -110,22 +112,17 @@ static int l_insert(lua_State* L)
 	rbroot_t* root;
 	l_node_t* node;
 	root = CHECK_RBTREE(L, 1);
-	luaL_argcheck(L, !lua_isnoneornil(L, 2), 2,
-		      "number|string|table|udata required!");
+	luaL_argcheck(L, !lua_isnoneornil(L, 2), 2, "[rbtree:insert]number|string|table|udata required!");
 
-	do {
-		lua_getuservalue(L, 1);
-		lua_getfield(L, -1, "node_map");
-		lua_pushvalue(L, 2);
-		lua_rawget(L, -2);
-		if (!lua_isnil(L, -1))
-			return luaL_error(L, "value exists!");
-		lua_pop(L, 3);
-	} while(0);
+	lua_getuservalue(L, 1);
+	lua_getfield(L, -1, "node_map");
+	lua_pushvalue(L, 2);
+	lua_rawget(L, -2);
+	if (!lua_isnil(L, -1)) return luaL_error(L, "[rbtree:insert]value exists!");
+	lua_pop(L, 3);
 
 	node = malloc(sizeof(l_node_t));
-	if (node == NULL)
-		return luaL_error(L, "no memory in l_insert");
+	if (NULL == node) return luaL_error(L, "[rbtree:insert]no memory!");
 
 	lua_getuservalue(L, 1);
 
@@ -159,9 +156,9 @@ static int l_delete(lua_State* L)
 	l_node_t* node;
 
 	root = CHECK_RBTREE(L, 1);
-	luaL_argcheck(L, !lua_isnoneornil(L, 2), 2,
-		      "number|string|table|udata required!");
+	luaL_argcheck(L, !lua_isnoneornil(L, 2), 2, "[rbtree:delete]number|string|table|udata required!");
 	node = get_node(L, 1, 2);
+	if (NULL == node) return luaL_error(L, "[rbtree:delete]value not exists!");
 
 	lua_getuservalue(L, 1);
 
@@ -189,8 +186,7 @@ static int l_exists(lua_State* L)
 	l_node_t* node;
 
 	root = CHECK_RBTREE(L, 1);
-	luaL_argcheck(L, !lua_isnoneornil(L, 2), 2,
-		      "number|string|table|udata required!");
+	luaL_argcheck(L, !lua_isnoneornil(L, 2), 2, "[rbtree:exists]number|string|table|udata required!");
 	node = get_node(L, 1, 2);
 	(void)root;
 
@@ -208,11 +204,9 @@ static int l_range(lua_State* L)
 	int i;
 
 	root = CHECK_RBTREE(L, 1);
-	rbnode_from = lua_isnoneornil(L, 2) ? rb_first(root) : get_node(L, 1, 2);
-	rbnode_to = lua_isnoneornil(L, 3) ? rb_last(root) : get_node(L, 1, 3);
-	if (rbnode_from == NULL || rbnode_to == NULL) {
-		return luaL_error(L, "value not exists!");
-	}
+	rbnode_from = lua_isnoneornil(L, 2) ? rb_first(root) : &get_node(L, 1, 2)->rb;
+	rbnode_to = lua_isnoneornil(L, 3) ? rb_last(root) : &get_node(L, 1, 3)->rb;
+	if (NULL == rbnode_from || NULL == rbnode_to) return luaL_error(L, "[rbtree:range]value not exists!");
 
 	lua_getuservalue(L, 1);
 	lua_getfield(L, -1, "value_map");
@@ -238,9 +232,11 @@ static int l_iterator(lua_State* L)
 	(void)root;
 	index = lua_tointeger(L, lua_upvalueindex(2));
 	node = lua_touserdata(L, lua_upvalueindex(3));
-	if (node == NULL) {
-		return 0;
+	if (NULL == node) {
+		lua_pushnil(L);
+		return 1;
 	}
+
 	next = rb_entry(rb_next(&node->rb), l_node_t, rb);
 
 	lua_pushinteger(L, index + 1);
@@ -274,6 +270,44 @@ static int l_walk(lua_State* L)
 	return 1;
 }
 
+static int l_first(lua_State* L)
+{
+	rbroot_t* root;
+	l_node_t* first;
+
+	root = CHECK_RBTREE(L, 1);
+	first = rb_entry(rb_first(root), l_node_t, rb);
+	if (NULL == first) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	lua_getuservalue(L, 1);
+	lua_getfield(L, -1, "value_map");
+	lua_pushlightuserdata(L, (void*)first);
+	lua_rawget(L, -2);
+	return 1;
+}
+
+static int l_last(lua_State* L)
+{
+	rbroot_t* root;
+	l_node_t* last;
+
+	root = CHECK_RBTREE(L, 1);
+	last = rb_entry(rb_last(root), l_node_t, rb);
+	if (NULL == last) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	lua_getuservalue(L, 1);
+	lua_getfield(L, -1, "value_map");
+	lua_pushlightuserdata(L, (void*)last);
+	lua_rawget(L, -2);
+	return 1;
+}
+
 static int l_gc(lua_State* L)
 {
 	rbroot_t* root;
@@ -296,6 +330,8 @@ static void opencls_rbtree(lua_State* L)
 		{"exists", l_exists},
 		{"range", l_range},
 		{"walk", l_walk},
+		{"first", l_first},
+		{"last", l_last},
 		{NULL, NULL},
 	};
 	luaL_newmetatable(L, CLASS_RBTREE);
