@@ -311,12 +311,14 @@ static int l_last(lua_State* L)
 static int l_gc(lua_State* L)
 {
 	rbroot_t* root;
-	rbnode_t* rbnode;
+	rbnode_t* rbnode, *rbnext;
 	l_node_t* node;
 	root = CHECK_RBTREE(L, 1);
 
-	for (rbnode = rb_first(root); rbnode; rbnode = rb_next(rbnode)){
+	for (rbnode = rb_first(root); rbnode; rbnode = rbnext) {
 		node = rb_entry(rbnode, l_node_t, rb);
+		rb_erase(&node->rb, root);
+		rbnext = rb_next(rbnode);
 		free(node);
 	}
 	return 0;
