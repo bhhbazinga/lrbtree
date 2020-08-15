@@ -27,7 +27,7 @@ local t4 = os.clock()
 
 print("after delete all")
 for idx, v in rbtree:walk() do
---	print(idx, v)
+	print(idx, v)
 end
 
 print("insert 100K elements:", t2 - t1)
@@ -37,16 +37,23 @@ local r = lrbtree.new(function(t1, t2) return t1[1] - t2[1] end)
 local t1 = {1}
 local t2 = {2}
 local t3 = {3}
+local t4 = {4}
+local t5 = {5}
 
 r:insert(t1)
-r:insert(t2)
 r:insert(t3)
-r:delete(t2)
+r:insert(t5)
+r:insert(t2)
+r:insert(t4)
 
-for i, v in ipairs(r:range()) do
+r:delete(t3)
+
+print("--- range")
+for i, v in ipairs(r:range(t2, t4)) do
 	print(i, v, v[1])
 end
 
+print("--- walk")
 for i, v in r:walk() do
 	print(i, v, v[1])
 end

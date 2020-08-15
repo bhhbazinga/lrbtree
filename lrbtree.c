@@ -217,6 +217,9 @@ static int l_range(lua_State* L)
 		lua_pushlightuserdata(L, (void *)node);
 		lua_rawget(L, -3);
 		lua_rawseti(L, -2, i);
+		if (rbnode_cur == rbnode_to) {
+			break;
+		}
 	}
 	return 1;
 }
