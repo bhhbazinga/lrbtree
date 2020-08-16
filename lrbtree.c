@@ -61,8 +61,9 @@ static int compare(lua_State* L, l_node_t* nodea, l_node_t* nodeb)
 	lua_rawget(L, -4);		/*value_map, comp_func, valueA, valueB*/
 
 	fret = lua_pcall(L, 2, 1, 0);
-	if (fret != 0)
+	if (fret != 0) {
 		return luaL_error(L, "comp error %s", lua_tostring(L, -1));
+	}
 
 	ret = lua_tointeger(L, -1);
 	lua_settop(L, top);
@@ -112,17 +113,26 @@ static int l_insert(lua_State* L)
 	rbroot_t* root;
 	l_node_t* node;
 	root = CHECK_RBTREE(L, 1);
-	luaL_argcheck(L, !lua_isnoneornil(L, 2), 2, "[rbtree:insert]number|string|table|udata required!");
+        if (lua_isnoneornil(L, 2)) {
+		lua_pushnil(L);
+		return 1;
+        }
 
 	lua_getuservalue(L, 1);
 	lua_getfield(L, -1, "node_map");
 	lua_pushvalue(L, 2);
 	lua_rawget(L, -2);
-	if (!lua_isnil(L, -1)) return luaL_error(L, "[rbtree:insert]value exists!");
+	if (!lua_isnil(L, -1)) {
+		lua_pushnil(L);
+		return 1;
+	}
 	lua_pop(L, 3);
 
 	node = malloc(sizeof(l_node_t));
-	if (NULL == node) return luaL_error(L, "[rbtree:insert]no memory!");
+	if (NULL == node) {
+		lua_pushnil(L);
+		return 1;
+	}
 
 	lua_getuservalue(L, 1);
 
@@ -147,7 +157,8 @@ static int l_insert(lua_State* L)
 	rb_link_node(&node->rb, parent, new);
 	rb_insert_color(&node->rb, root);
 
-	return 0;
+	lua_pushboolean(L, 1);
+	return 1;
 }
 
 static int l_delete(lua_State* L)
@@ -156,9 +167,16 @@ static int l_delete(lua_State* L)
 	l_node_t* node;
 
 	root = CHECK_RBTREE(L, 1);
-	luaL_argcheck(L, !lua_isnoneornil(L, 2), 2, "[rbtree:delete]number|string|table|udata required!");
+        if (lua_isnoneornil(L, 2)) {
+		lua_pushnil(L);
+		return 1;
+	}
+
 	node = get_node(L, 1, 2);
-	if (NULL == node) return luaL_error(L, "[rbtree:delete]value not exists!");
+	if (NULL == node) {
+		lua_pushnil(L);
+		return 1;
+	}
 
 	lua_getuservalue(L, 1);
 
@@ -177,7 +195,8 @@ static int l_delete(lua_State* L)
 	rb_erase(&node->rb, root);
 	free(node);
 
-	return 0;
+	lua_pushboolean(L, 1);
+	return 1;
 }
 
 static int l_exists(lua_State* L)
@@ -186,10 +205,13 @@ static int l_exists(lua_State* L)
 	l_node_t* node;
 
 	root = CHECK_RBTREE(L, 1);
-	luaL_argcheck(L, !lua_isnoneornil(L, 2), 2, "[rbtree:exists]number|string|table|udata required!");
+        if (lua_isnoneornil(L, 2)) {
+		lua_pushnil(L);
+		return 1;
+	}
+
 	node = get_node(L, 1, 2);
 	(void)root;
-
 	lua_pushboolean(L, node != NULL);
 	return 1;
 }
@@ -206,7 +228,10 @@ static int l_range(lua_State* L)
 	root = CHECK_RBTREE(L, 1);
 	rbnode_from = lua_isnoneornil(L, 2) ? rb_first(root) : &get_node(L, 1, 2)->rb;
 	rbnode_to = lua_isnoneornil(L, 3) ? rb_last(root) : &get_node(L, 1, 3)->rb;
-	if (NULL == rbnode_from || NULL == rbnode_to) return luaL_error(L, "[rbtree:range]value not exists!");
+	if (NULL == rbnode_from || NULL == rbnode_to) {
+		lua_newtable(L);
+		return 1;
+	}
 
 	lua_getuservalue(L, 1);
 	lua_getfield(L, -1, "value_map");
@@ -217,6 +242,9 @@ static int l_range(lua_State* L)
 		lua_pushlightuserdata(L, (void *)node);
 		lua_rawget(L, -3);
 		lua_rawseti(L, -2, i);
+		if (rbnode_cur == rbnode_to) {
+			break;
+		}
 	}
 	return 1;
 }
